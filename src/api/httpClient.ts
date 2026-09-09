@@ -14,7 +14,6 @@ import type {
   Merchant,
   ProfileUpdate,
   Quote,
-  RegisterPayload,
   Service,
   Staff,
   StaffDayAvailability,
@@ -27,7 +26,24 @@ import type {
 
 const BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "";
 
-async function request<T>(path: string, init?: RequestInit, token?: string): Promise<T> {
+type AuthMode = "none" | "optional" | "required";
+type AccessTokenProvider = () => Promise<string | undefined>;
+
+let accessTokenProvider: AccessTokenProvider | undefined;
+
+export function setAccessTokenProvider(provider: AccessTokenProvider): void {
+  accessTokenProvider = provider;
+}
+
+async function tokenFor(mode: AuthMode): Promise<string | undefined> {
+  if (mode === "none") return undefined;
+  const token = await accessTokenProvider?.();
+  if (!token && mode === "required") throw new ApiError("Please sign in", 401);
+  return token;
+}
+
+async function request<T>(path: string, init?: RequestInit, auth: AuthMode = "none"): Promise<T> {
+  const token = await tokenFor(auth);
   const res = await fetch(`${BASE_URL}${path}`, {
     headers: {
       "Content-Type": "application/json",
@@ -642,7 +658,7 @@ export const httpApiClient: ApiClient = {
     return toQuote(res);
   },
 
-  async createBooking(payload: CreateBookingPayload, token?: string) {
+  async createBooking(payload: CreateBookingPayload) {
     const { schedule } = payload;
     if (!schedule.startTime) {
       throw new ApiError("Selected time slot is missing a start time.");
@@ -683,7 +699,7 @@ export const httpApiClient: ApiClient = {
           ],
         }),
       },
-      token,
+      "optional",
     );
     return {
       id: res.id,
@@ -706,60 +722,22 @@ export const httpApiClient: ApiClient = {
     return requestForm<{ url: string }>(`/public/upload/${tenantSlug}/payment-receipt/${bookingId}`, formData);
   },
 
-  async register(payload: RegisterPayload) {
-    const user = await request<BackendUser>("/auth/register", {
-      method: "POST",
-      body: JSON.stringify(payload),
-    });
+  async getMe() {
+    const user = await request<BackendUser>("/auth/me", undefined, "required");
     return toAuthUser(user);
   },
 
-  async login(email: string, password: string) {
-    const { access_token } = await request<{ access_token: string }>("/auth/login", {
-      method: "POST",
-      body: JSON.stringify({ email, password }),
-    });
-    return { token: access_token };
-  },
-
-  async getMe(token: string) {
-    const user = await request<BackendUser>("/auth/me", undefined, token);
-    return toAuthUser(user);
-  },
-
-  async updateProfile(token: string, update: ProfileUpdate) {
+  async updateProfile(update: ProfileUpdate) {
     const user = await request<BackendUser>(
       "/customers/me",
       { method: "PATCH", body: JSON.stringify(update) },
-      token,
+      "required",
     );
     return toAuthUser(user);
   },
 
-  forgotPassword(email: string) {
-    return request<void>("/auth/forgot-password", {
-      method: "POST",
-      body: JSON.stringify({ email }),
-    });
-  },
-
-  resetPassword(token: string, newPassword: string) {
-    return request<void>("/auth/reset-password", {
-      method: "POST",
-      body: JSON.stringify({ token, new_password: newPassword }),
-    });
-  },
-
-  changePassword(token: string, currentPassword: string, newPassword: string) {
-    return request<void>(
-      "/auth/change-password",
-      { method: "POST", body: JSON.stringify({ current_password: currentPassword, new_password: newPassword }) },
-      token,
-    );
-  },
-
-  async getMyBookings(token: string) {
-    const bookings = await request<BackendBookingResponse[]>("/customers/me/bookings", undefined, token);
+  async getMyBookings() {
+    const bookings = await request<BackendBookingResponse[]>("/customers/me/bookings", undefined, "required");
     return bookings.map(toBookingSummary);
   },
 
@@ -776,21 +754,21 @@ export const httpApiClient: ApiClient = {
     }
   },
 
-  async getFavorites(token: string) {
-    const favorites = await request<BackendFavoriteTenant[]>("/customers/me/favorites", undefined, token);
+  async getFavorites() {
+    const favorites = await request<BackendFavoriteTenant[]>("/customers/me/favorites", undefined, "required");
     return favorites.map(toFavoriteMerchant);
   },
 
-  async addFavorite(token: string, tenantSlug: string) {
+  async addFavorite(tenantSlug: string) {
     const favorite = await request<BackendFavoriteTenant>(
       `/customers/me/favorites/${tenantSlug}`,
       { method: "POST" },
-      token,
+      "required",
     );
     return toFavoriteMerchant(favorite);
   },
 
-  async removeFavorite(token: string, tenantSlug: string) {
-    await request<{ message: string }>(`/customers/me/favorites/${tenantSlug}`, { method: "DELETE" }, token);
+  async removeFavorite(tenantSlug: string) {
+    await request<{ message: string }>(`/customers/me/favorites/${tenantSlug}`, { method: "DELETE" }, "required");
   },
 };

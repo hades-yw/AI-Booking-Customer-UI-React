@@ -218,12 +218,6 @@ export interface AuthUser {
   email: string;
 }
 
-export interface RegisterPayload {
-  name: string;
-  email: string;
-  password: string;
-}
-
 export interface ProfileUpdate {
   name?: string;
   email?: string;

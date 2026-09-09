@@ -52,6 +52,7 @@ export function SiteHeader() {
           ) : (
             <Link
               to="/login"
+              state={{ returnTo: `${location.pathname}${location.search}` }}
               className="flex items-center gap-1.5 rounded-full bg-brand-600 px-3.5 py-1.5 text-[13px] font-bold text-white hover:bg-brand-700"
             >
               <User size={14} className="sm:hidden" />

@@ -2,13 +2,12 @@ import {
   CalendarClock,
   Heart,
   KeyRound,
-  Lock,
   LogOut,
   Shield,
   User,
 } from "lucide-react";
 import { useEffect, useState } from "react";
-import { Link, Navigate, useNavigate, useSearchParams } from "react-router-dom";
+import { Link, Navigate, useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { Footer } from "../components/layout/Footer";
 import { PageContainer } from "../components/layout/PageContainer";
 import { TopNav } from "../components/layout/TopNav";
@@ -64,97 +63,32 @@ function paramToTab(v: string | null): Tab {
   return match ?? "Overview";
 }
 
-function ChangePasswordForm({ token, onDone }: { token: string; onDone: () => void }) {
-  const [current, setCurrent] = useState("");
-  const [next, setNext] = useState("");
-  const [confirm, setConfirm] = useState("");
-  const [error, setError] = useState<string | null>(null);
-  const [submitting, setSubmitting] = useState(false);
-
-  const handleSubmit = async () => {
-    if (next !== confirm) {
-      setError("New passwords don't match.");
-      return;
-    }
-    setError(null);
-    setSubmitting(true);
-    try {
-      await api.changePassword(token, current, next);
-      onDone();
-    } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Couldn't change your password.");
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  return (
-    <div className="flex flex-col gap-2.5">
-      <TextField
-        icon={<Lock size={14} />}
-        type="password"
-        placeholder="Current password"
-        value={current}
-        onChange={(e) => setCurrent(e.target.value)}
-      />
-      <TextField
-        icon={<Lock size={14} />}
-        type="password"
-        placeholder="New password"
-        value={next}
-        onChange={(e) => setNext(e.target.value)}
-      />
-      <TextField
-        icon={<Lock size={14} />}
-        type="password"
-        placeholder="Confirm new password"
-        value={confirm}
-        onChange={(e) => setConfirm(e.target.value)}
-      />
-
-      {error && <p className="text-sm font-semibold text-red-500">{error}</p>}
-
-      <PrimaryButton
-        fullWidth
-        onClick={handleSubmit}
-        disabled={submitting || !current || !next || !confirm}
-      >
-        {submitting ? "Saving…" : "Update password"}
-      </PrimaryButton>
-
-      <Link to="/forgot-password" className="text-center text-[12px] font-semibold text-brand-600 hover:underline">
-        Forgot your current password?
-      </Link>
-    </div>
-  );
-}
-
 export function ProfilePage() {
   const navigate = useNavigate();
+  const location = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
   const tab = paramToTab(searchParams.get("tab"));
   const setTab = (t: Tab) => setSearchParams(t === "Overview" ? {} : { tab: tabToParam(t) });
 
-  const { user, token, loading, logout, updateProfile } = useAuth();
+  const { user, authenticated, loading, logout, manageAccount, updateProfile } = useAuth();
   const { favorites, loading: favoritesLoading, toggleLike } = useFavorites();
   const [name, setName] = useState(user?.name ?? "");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
 
-  const [changingPassword, setChangingPassword] = useState(false);
-  const [passwordChanged, setPasswordChanged] = useState(false);
-
   const { data: bookings, loading: bookingsLoading } = useAsync(
-    () => (token ? api.getMyBookings(token) : Promise.resolve([])),
-    [token],
+    () => (authenticated ? api.getMyBookings() : Promise.resolve([])),
+    [authenticated],
   );
 
   useEffect(() => {
     if (user) setName(user.name);
   }, [user]);
 
-  if (!loading && !user) return <Navigate to="/login" replace />;
+  if (!loading && !user) {
+    return <Navigate to="/login" replace state={{ returnTo: `${location.pathname}${location.search}` }} />;
+  }
   if (!user) return null;
 
   const handleSave = async () => {
@@ -171,10 +105,7 @@ export function ProfilePage() {
     }
   };
 
-  const handleLogout = () => {
-    logout();
-    navigate("/");
-  };
+  const handleLogout = () => void logout();
 
   const upcomingCount = (bookings ?? []).filter((b) => {
     const status = b.status.toLowerCase();
@@ -352,33 +283,14 @@ export function ProfilePage() {
                 <p className="text-[13px] font-bold text-ink-900">Password</p>
               </div>
 
-              {!changingPassword && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setChangingPassword(true);
-                    setPasswordChanged(false);
-                  }}
-                  className="flex w-full cursor-pointer items-center gap-2.5 rounded-xl border-0 bg-transparent py-2 text-left text-[13px] font-semibold text-ink-700"
-                >
-                  <KeyRound size={16} className="text-ink-400" />
-                  Change password
-                </button>
-              )}
-
-              {changingPassword && token && (
-                <ChangePasswordForm
-                  token={token}
-                  onDone={() => {
-                    setChangingPassword(false);
-                    setPasswordChanged(true);
-                  }}
-                />
-              )}
-
-              {passwordChanged && !changingPassword && (
-                <p className="text-sm font-semibold text-emerald-600">Password updated.</p>
-              )}
+              <button
+                type="button"
+                onClick={() => void manageAccount()}
+                className="flex w-full cursor-pointer items-center gap-2.5 rounded-xl border-0 bg-transparent py-2 text-left text-[13px] font-semibold text-ink-700"
+              >
+                <KeyRound size={16} className="text-ink-400" />
+                Manage password and sign-in settings
+              </button>
             </Card>
 
             <button

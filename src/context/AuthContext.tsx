@@ -1,85 +1,127 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import { api } from "../api";
+import { setAccessTokenProvider } from "../api/httpClient";
+import {
+  accessToken,
+  initializeAuth,
+  login as keycloakLogin,
+  loginWithProvider as keycloakLoginWithProvider,
+  logout as keycloakLogout,
+  manageAccount,
+  register as keycloakRegister,
+} from "../auth/keycloak";
 import type { AuthUser, ProfileUpdate } from "../types";
 
-const TOKEN_STORAGE_KEY = "booklocal_token";
+type SocialProvider = "google" | "facebook";
 
 interface AuthContextValue {
   user: AuthUser | null;
-  token: string | null;
+  authenticated: boolean;
   loading: boolean;
-  login: (email: string, password: string) => Promise<void>;
-  register: (name: string, email: string, password: string) => Promise<void>;
-  logout: () => void;
+  error: string | null;
+  login: (returnTo?: string) => Promise<void>;
+  loginWithProvider: (provider: SocialProvider, returnTo?: string) => Promise<void>;
+  register: (returnTo?: string) => Promise<void>;
+  logout: () => Promise<void>;
+  manageAccount: () => Promise<void>;
   updateProfile: (update: ProfileUpdate) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
+function authErrorMessage(error: unknown): string {
+  if (error instanceof Error && error.message) return error.message;
+  return "Sign-in is temporarily unavailable. You can still browse and book as a guest.";
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null);
-  const [token, setToken] = useState<string | null>(() => localStorage.getItem(TOKEN_STORAGE_KEY));
+  const [authenticated, setAuthenticated] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!token) {
+    let active = true;
+    const availabilityTimer = window.setTimeout(() => {
+      if (!active) return;
       setLoading(false);
-      return;
-    }
-    let cancelled = false;
-    api
-      .getMe(token)
-      .then((me) => {
-        if (!cancelled) setUser(me);
+      setError("Sign-in is taking longer than expected. You can continue browsing and book as a guest.");
+    }, 8000);
+    setAccessTokenProvider(accessToken);
+    const clearSession = () => {
+      if (!active) return;
+      setAuthenticated(false);
+      setUser(null);
+    };
+
+    initializeAuth(clearSession)
+      .then(async (signedIn) => {
+        if (!active) return;
+        window.clearTimeout(availabilityTimer);
+        setError(null);
+        setAuthenticated(signedIn);
+        if (signedIn) setUser(await api.getMe());
       })
-      .catch(() => {
-        if (!cancelled) {
-          localStorage.removeItem(TOKEN_STORAGE_KEY);
-          setToken(null);
-        }
+      .catch((reason: unknown) => {
+        if (!active) return;
+        window.clearTimeout(availabilityTimer);
+        clearSession();
+        setError(authErrorMessage(reason));
       })
       .finally(() => {
-        if (!cancelled) setLoading(false);
+        if (active) setLoading(false);
       });
-    return () => {
-      cancelled = true;
-    };
-  }, [token]);
 
-  const login = useCallback(async (email: string, password: string) => {
-    const { token: newToken } = await api.login(email, password);
-    const me = await api.getMe(newToken);
-    localStorage.setItem(TOKEN_STORAGE_KEY, newToken);
-    setToken(newToken);
-    setUser(me);
+    return () => {
+      active = false;
+      window.clearTimeout(availabilityTimer);
+    };
   }, []);
 
-  const register = useCallback(
-    async (name: string, email: string, password: string) => {
-      await api.register({ name, email, password });
-      await login(email, password);
-    },
-    [login],
-  );
+  const login = useCallback((returnTo?: string) => {
+    setError(null);
+    return keycloakLogin(returnTo);
+  }, []);
 
-  const logout = useCallback(() => {
-    localStorage.removeItem(TOKEN_STORAGE_KEY);
-    setToken(null);
+  const loginWithProvider = useCallback((provider: SocialProvider, returnTo?: string) => {
+    setError(null);
+    return keycloakLoginWithProvider(provider, returnTo);
+  }, []);
+
+  const register = useCallback((returnTo?: string) => {
+    setError(null);
+    return keycloakRegister(returnTo);
+  }, []);
+
+  const logout = useCallback(async () => {
+    setAuthenticated(false);
     setUser(null);
+    await keycloakLogout();
   }, []);
 
   const updateProfile = useCallback(
     async (update: ProfileUpdate) => {
-      if (!token) throw new Error("Not authenticated");
-      const me = await api.updateProfile(token, update);
-      setUser(me);
+      if (!authenticated || !user) throw new Error("Please sign in");
+      const profile = await api.updateProfile(update);
+      setUser({ ...profile, id: user.id });
     },
-    [token],
+    [authenticated, user],
   );
 
   const value = useMemo(
-    () => ({ user, token, loading, login, register, logout, updateProfile }),
-    [user, token, loading, login, register, logout, updateProfile],
+    () => ({
+      user,
+      authenticated,
+      loading,
+      error,
+      login,
+      loginWithProvider,
+      register,
+      logout,
+      manageAccount,
+      updateProfile,
+    }),
+    [user, authenticated, loading, error, login, loginWithProvider, register, logout, updateProfile],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

@@ -1,15 +1,14 @@
 import type { RouteObject } from "react-router-dom";
 import { AuthPage } from "./pages/AuthPage";
+import { AuthCallbackPage } from "./pages/AuthCallbackPage";
 import { BookingPage } from "./pages/BookingPage";
 import { BookingReceiptPage } from "./pages/BookingReceiptPage";
 import { CheckoutPage } from "./pages/CheckoutPage";
 import { ConfirmationPage } from "./pages/ConfirmationPage";
-import { ForgotPasswordPage } from "./pages/ForgotPasswordPage";
 import { LandingPage } from "./pages/LandingPage";
 import { MerchantDetailPage } from "./pages/MerchantDetailPage";
 import { NotFoundPage } from "./pages/NotFoundPage";
 import { ProfilePage } from "./pages/ProfilePage";
-import { ResetPasswordPage } from "./pages/ResetPasswordPage";
 
 export const routes: RouteObject[] = [
   { path: "/", element: <LandingPage /> },
@@ -20,8 +19,9 @@ export const routes: RouteObject[] = [
   { path: "/merchants/:merchantId/booking/:bookingRef", element: <BookingReceiptPage /> },
   { path: "/login", element: <AuthPage /> },
   { path: "/register", element: <AuthPage /> },
-  { path: "/forgot-password", element: <ForgotPasswordPage /> },
-  { path: "/reset-password", element: <ResetPasswordPage /> },
+  { path: "/forgot-password", element: <AuthPage /> },
+  { path: "/reset-password", element: <AuthPage /> },
+  { path: "/auth/callback", element: <AuthCallbackPage /> },
   { path: "/profile", element: <ProfilePage /> },
   { path: "*", element: <NotFoundPage /> },
 ];

@@ -211,8 +211,6 @@ export function BookingPage() {
   );
   const staffAvailability = customStaffDay ? customStaffDay.staff : staffAvailabilityByDate?.[selectedDayStaff];
 
-  if (!merchant || !pkg) return <Navigate to="/" replace />;
-
   const day = customDay ?? availability?.[selectedDay];
 
   // Slots for the currently-selected staff (or the union across all staff
@@ -266,6 +264,10 @@ export function BookingPage() {
     [activeSlot?.startTime, merchant?.id, pkg?.id],
   );
   const quoteLoading = Boolean(activeSlot) && quoteFetchLoading;
+
+  // Keep every hook above the route guard so renders always call hooks in the
+  // same order, including the first render after restoring a booking draft.
+  if (!merchant || !pkg) return <Navigate to="/" replace />;
 
   const handleSelectQuickDay = (i: number) => {
     setSelectedDay(i);

@@ -10,7 +10,6 @@ import type {
   FavoriteMerchant,
   ProfileUpdate,
   Quote,
-  RegisterPayload,
   Staff,
   StaffDayAvailability,
   TimeSlot,
@@ -29,46 +28,7 @@ function delay<T>(value: T, ms = NETWORK_DELAY_MS): Promise<T> {
   return new Promise((resolve) => setTimeout(() => resolve(value), ms));
 }
 
-// ─── MOCK AUTH STORE ────────────────────────────────────────────────────────
-// Persisted to localStorage (not just in-memory) so that flows spanning a
-// real page navigation — like clicking a password-reset link from "email" —
-// still see the same users after the page reloads.
-
-interface MockUserRecord extends AuthUser {
-  password: string;
-}
-
-const STORAGE_KEY = "booklocal_mock_users";
-const RESET_TOKEN_PREFIX = "mock-reset-";
-
-function loadMockUsers(): MockUserRecord[] {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    return raw ? (JSON.parse(raw) as MockUserRecord[]) : [];
-  } catch {
-    return [];
-  }
-}
-
-function saveMockUsers(users: MockUserRecord[]): void {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(users));
-}
-
-const mockUsers: MockUserRecord[] = loadMockUsers();
-let nextUserId = mockUsers.reduce((max, u) => Math.max(max, u.id), 0) + 1;
-
-function tokenForUser(id: number): string {
-  return `mock-token-${id}`;
-}
-
-function userIdFromToken(token: string): number | null {
-  const match = /^mock-token-(\d+)$/.exec(token);
-  return match ? Number(match[1]) : null;
-}
-
-function toAuthUser(record: MockUserRecord): AuthUser {
-  return { id: record.id, name: record.name, email: record.email };
-}
+const mockUser: AuthUser = { id: 1, name: "Mock Customer", email: "customer@example.com" };
 
 const TIME_SLOTS = ["9:00 AM", "10:00 AM", "11:00 AM", "1:00 PM", "2:00 PM", "3:00 PM", "4:00 PM", "5:00 PM"];
 
@@ -155,12 +115,6 @@ function saveMockFavorites(favorites: Record<number, FavoriteMerchant[]>): void 
 }
 
 const mockFavorites: Record<number, FavoriteMerchant[]> = loadMockFavorites();
-
-function requireMockUserId(token: string): number {
-  const id = userIdFromToken(token);
-  if (id === null) throw new ApiError("Invalid credentials", 401);
-  return id;
-}
 
 export const mockApiClient: ApiClient = {
   async getCategories() {
@@ -253,7 +207,7 @@ export const mockApiClient: ApiClient = {
     );
   },
 
-  async createBooking(payload: CreateBookingPayload, _token?: string): Promise<BookingConfirmation> {
+  async createBooking(payload: CreateBookingPayload): Promise<BookingConfirmation> {
     const { pkg } = payload;
     const bookingRef = "BK-" + Math.random().toString(36).slice(2, 8).toUpperCase();
     const discountAmount = payload.couponCode && MOCK_COUPONS[payload.couponCode.toUpperCase()]
@@ -284,81 +238,17 @@ export const mockApiClient: ApiClient = {
     return delay({ url: "mock://payment-receipt.jpg" }, 400);
   },
 
-  async register(payload: RegisterPayload) {
-    const exists = mockUsers.some((u) => u.email.toLowerCase() === payload.email.toLowerCase());
-    if (exists) throw new ApiError("Email already registered", 400);
-    const record: MockUserRecord = {
-      id: nextUserId++,
-      name: payload.name,
-      email: payload.email,
-      password: payload.password,
-    };
-    mockUsers.push(record);
-    saveMockUsers(mockUsers);
-    return delay(toAuthUser(record));
+  async getMe() {
+    return delay({ ...mockUser });
   },
 
-  async login(email: string, password: string) {
-    const record = mockUsers.find((u) => u.email.toLowerCase() === email.toLowerCase());
-    if (!record || record.password !== password) {
-      throw new ApiError("Invalid credentials", 401);
-    }
-    return delay({ token: tokenForUser(record.id) });
+  async updateProfile(update: ProfileUpdate) {
+    if (update.name !== undefined) mockUser.name = update.name;
+    if (update.email !== undefined) mockUser.email = update.email;
+    return delay({ ...mockUser });
   },
 
-  async getMe(token: string) {
-    const id = userIdFromToken(token);
-    const record = mockUsers.find((u) => u.id === id);
-    if (!record) throw new ApiError("Invalid credentials", 401);
-    return delay(toAuthUser(record));
-  },
-
-  async updateProfile(token: string, update: ProfileUpdate) {
-    const id = userIdFromToken(token);
-    const record = mockUsers.find((u) => u.id === id);
-    if (!record) throw new ApiError("Invalid credentials", 401);
-    if (update.name !== undefined) record.name = update.name;
-    if (update.email !== undefined) record.email = update.email;
-    saveMockUsers(mockUsers);
-    return delay(toAuthUser(record));
-  },
-
-  async forgotPassword(email: string) {
-    // Always resolves — never reveal whether an email is registered.
-    const record = mockUsers.find((u) => u.email.toLowerCase() === email.toLowerCase());
-    if (record) {
-      // No email transport in the mock client — log the reset link like the
-      // real backend does in dev mode (ENABLE_EMAIL_SENDING=false).
-      console.info(`[mock] Password reset link: /reset-password?token=${RESET_TOKEN_PREFIX}${record.id}`);
-    }
-    await delay(undefined);
-  },
-
-  async resetPassword(token: string, newPassword: string) {
-    if (!token.startsWith(RESET_TOKEN_PREFIX)) {
-      throw new ApiError("Invalid or expired reset link", 400);
-    }
-    const id = Number(token.slice(RESET_TOKEN_PREFIX.length));
-    const record = mockUsers.find((u) => u.id === id);
-    if (!record) throw new ApiError("Invalid or expired reset link", 400);
-    record.password = newPassword;
-    saveMockUsers(mockUsers);
-    await delay(undefined);
-  },
-
-  async changePassword(token: string, currentPassword: string, newPassword: string) {
-    const id = userIdFromToken(token);
-    const record = mockUsers.find((u) => u.id === id);
-    if (!record) throw new ApiError("Invalid credentials", 401);
-    if (record.password !== currentPassword) {
-      throw new ApiError("Current password is incorrect", 400);
-    }
-    record.password = newPassword;
-    saveMockUsers(mockUsers);
-    await delay(undefined);
-  },
-
-  async getMyBookings(_token: string) {
+  async getMyBookings() {
     // Mock client has no booking-history store — the mock login flow is
     // exercised without a preceding createBooking call.
     return delay([] as BookingSummary[]);
@@ -369,13 +259,12 @@ export const mockApiClient: ApiClient = {
     return delay(undefined);
   },
 
-  async getFavorites(token: string) {
-    const id = requireMockUserId(token);
-    return delay([...(mockFavorites[id] ?? [])]);
+  async getFavorites() {
+    return delay([...(mockFavorites[mockUser.id] ?? [])]);
   },
 
-  async addFavorite(token: string, tenantSlug: string) {
-    const id = requireMockUserId(token);
+  async addFavorite(tenantSlug: string) {
+    const id = mockUser.id;
     const merchant = MERCHANTS.find((m) => m.id === tenantSlug);
     if (!merchant) throw new ApiError("Tenant not found", 404);
     const existing = mockFavorites[id] ?? [];
@@ -387,8 +276,8 @@ export const mockApiClient: ApiClient = {
     return delay(favorite);
   },
 
-  async removeFavorite(token: string, tenantSlug: string) {
-    const id = requireMockUserId(token);
+  async removeFavorite(tenantSlug: string) {
+    const id = mockUser.id;
     mockFavorites[id] = (mockFavorites[id] ?? []).filter((f) => f.merchant.id !== tenantSlug);
     saveMockFavorites(mockFavorites);
     await delay(undefined);
