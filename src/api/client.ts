@@ -9,7 +9,6 @@ import type {
   Merchant,
   ProfileUpdate,
   Quote,
-  RegisterPayload,
   Staff,
   StaffDayAvailability,
 } from "../types";
@@ -40,20 +39,15 @@ export interface ApiClient {
       couponCode?: string;
     },
   ): Promise<Quote>;
-  createBooking(payload: CreateBookingPayload, token?: string): Promise<BookingConfirmation>;
+  createBooking(payload: CreateBookingPayload): Promise<BookingConfirmation>;
   getBookingReceipt(tenantSlug: string, bookingRef: string): Promise<BookingReceipt | undefined>;
   uploadPaymentReceipt(tenantSlug: string, bookingId: number, file: File): Promise<{ url: string }>;
-  register(payload: RegisterPayload): Promise<AuthUser>;
-  login(email: string, password: string): Promise<{ token: string }>;
-  getMe(token: string): Promise<AuthUser>;
-  updateProfile(token: string, update: ProfileUpdate): Promise<AuthUser>;
-  forgotPassword(email: string): Promise<void>;
-  resetPassword(token: string, newPassword: string): Promise<void>;
-  changePassword(token: string, currentPassword: string, newPassword: string): Promise<void>;
-  getMyBookings(token: string): Promise<BookingSummary[]>;
-  getFavorites(token: string): Promise<FavoriteMerchant[]>;
-  addFavorite(token: string, tenantSlug: string): Promise<FavoriteMerchant>;
-  removeFavorite(token: string, tenantSlug: string): Promise<void>;
+  getMe(): Promise<AuthUser>;
+  updateProfile(update: ProfileUpdate): Promise<AuthUser>;
+  getMyBookings(): Promise<BookingSummary[]>;
+  getFavorites(): Promise<FavoriteMerchant[]>;
+  addFavorite(tenantSlug: string): Promise<FavoriteMerchant>;
+  removeFavorite(tenantSlug: string): Promise<void>;
 }
 
 export class ApiError extends Error {

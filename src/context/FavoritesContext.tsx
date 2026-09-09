@@ -2,6 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState, t
 import { api } from "../api";
 import { useAuth } from "./AuthContext";
 import type { FavoriteMerchant } from "../types";
+import { useLocation, useNavigate } from "react-router-dom";
 
 // Favorites are backed by the real /v1/customers/me/favorites API once a
 // customer is logged in (see the backend's CustomerFavoriteTenant model) —
@@ -20,19 +21,21 @@ interface FavoritesContextValue {
 const FavoritesContext = createContext<FavoritesContextValue | undefined>(undefined);
 
 export function FavoritesProvider({ children }: { children: ReactNode }) {
-  const { token } = useAuth();
+  const { authenticated } = useAuth();
+  const location = useLocation();
+  const navigate = useNavigate();
   const [favorites, setFavorites] = useState<FavoriteMerchant[]>([]);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    if (!token) {
+    if (!authenticated) {
       setFavorites([]);
       return;
     }
     let cancelled = false;
     setLoading(true);
     api
-      .getFavorites(token)
+      .getFavorites()
       .then((favs) => {
         if (!cancelled) setFavorites(favs);
       })
@@ -45,26 +48,31 @@ export function FavoritesProvider({ children }: { children: ReactNode }) {
     return () => {
       cancelled = true;
     };
-  }, [token]);
+  }, [authenticated]);
 
   const toggleLike = useCallback(
     (id: string) => {
-      if (!token) return;
+      if (!authenticated) {
+        navigate("/login", {
+          state: { returnTo: `${location.pathname}${location.search}` },
+        });
+        return;
+      }
       const isLiked = favorites.some((f) => f.merchant.id === id);
       if (isLiked) {
         setFavorites((prev) => prev.filter((f) => f.merchant.id !== id));
-        api.removeFavorite(token, id).catch(() => {
+        api.removeFavorite(id).catch(() => {
           // Re-sync from the server on failure rather than trusting the optimistic removal.
-          api.getFavorites(token).then(setFavorites).catch(() => undefined);
+          api.getFavorites().then(setFavorites).catch(() => undefined);
         });
       } else {
         api
-          .addFavorite(token, id)
+          .addFavorite(id)
           .then((favorite) => setFavorites((prev) => [favorite, ...prev]))
           .catch(() => undefined);
       }
     },
-    [token, favorites],
+    [authenticated, favorites, location.pathname, location.search, navigate],
   );
 
   const likedIds = useMemo(

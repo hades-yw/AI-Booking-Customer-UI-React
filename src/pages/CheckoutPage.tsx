@@ -11,7 +11,6 @@ import { ErrorState } from "../components/ui/AsyncState";
 import { PrimaryButton } from "../components/ui/PrimaryButton";
 import { Row } from "../components/ui/Row";
 import { StepProgress } from "../components/ui/StepProgress";
-import { useAuth } from "../context/AuthContext";
 import { useBookingFlow } from "../context/BookingFlowContext";
 import { PaymentMethodPicker } from "../features/booking/PaymentMethodPicker";
 import { formatDate } from "../lib/date";
@@ -46,8 +45,7 @@ function QuoteLineRow({ line, quote }: { line: Quote["lines"][number]; quote: Qu
 
 export function CheckoutPage() {
   const navigate = useNavigate();
-  const { token } = useAuth();
-  const { merchant, pkg, schedule, customer, paymentMethod, setPaymentMethod, couponCode, quote, reset } =
+  const { merchant, pkg, schedule, customer, paymentMethod, setPaymentMethod, couponCode, quote, clearSavedDraft, reset } =
     useBookingFlow();
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
@@ -77,8 +75,7 @@ export function CheckoutPage() {
     setSubmitting(true);
     setSubmitError(null);
     try {
-      const result = await api.createBooking(
-        {
+      const result = await api.createBooking({
           tenantSlug: merchant.id,
           tenantTimezone: merchant.timezone ?? "Asia/Kuala_Lumpur",
           merchant,
@@ -90,10 +87,9 @@ export function CheckoutPage() {
           packageId: pkg.selectedPackages[0] ? Number(pkg.selectedPackages[0].id) : undefined,
           optionIds: pkg.selectedOptions.map((o) => Number(o.id)),
           couponCode: couponCode ?? undefined,
-        },
-        token ?? undefined,
-      );
+      });
       setConfirmation(result);
+      clearSavedDraft();
     } catch (err) {
       setSubmitError(err instanceof ApiError ? err.message : "Could not place your booking. Please try again.");
     } finally {

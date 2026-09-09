@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import type { CustomerDetails, Merchant, PaymentMethodId, Quote, SelectedSchedule, ServicePackage } from "../types";
 
 // ─── BOOKING FLOW STATE ──────────────────────────────────────────────────────
@@ -24,8 +24,12 @@ interface BookingFlowContextValue extends BookingFlowState {
   setCustomer: (customer: CustomerDetails) => void;
   setPaymentMethod: (method: PaymentMethodId) => void;
   setCoupon: (couponCode: string | null, quote: Quote | null) => void;
+  clearSavedDraft: () => void;
   reset: () => void;
 }
+
+const DRAFT_STORAGE_KEY = "booklocal_booking_draft";
+const DRAFT_TTL_MS = 30 * 60 * 1000;
 
 const initialState: BookingFlowState = {
   merchant: null,
@@ -39,8 +43,34 @@ const initialState: BookingFlowState = {
 
 const BookingFlowContext = createContext<BookingFlowContextValue | undefined>(undefined);
 
+function restoreDraft(): BookingFlowState {
+  try {
+    const raw = sessionStorage.getItem(DRAFT_STORAGE_KEY);
+    if (!raw) return initialState;
+    const saved = JSON.parse(raw) as { savedAt: number; state: BookingFlowState };
+    if (!saved.savedAt || Date.now() - saved.savedAt > DRAFT_TTL_MS || !saved.state?.merchant) {
+      sessionStorage.removeItem(DRAFT_STORAGE_KEY);
+      return initialState;
+    }
+    // Quotes can become stale while the customer is authenticating. The
+    // confirmation page fetches a fresh authoritative quote after restore.
+    return { ...saved.state, quote: null, couponCode: null };
+  } catch {
+    sessionStorage.removeItem(DRAFT_STORAGE_KEY);
+    return initialState;
+  }
+}
+
 export function BookingFlowProvider({ children }: { children: ReactNode }) {
-  const [state, setState] = useState<BookingFlowState>(initialState);
+  const [state, setState] = useState<BookingFlowState>(restoreDraft);
+
+  useEffect(() => {
+    if (!state.merchant) {
+      sessionStorage.removeItem(DRAFT_STORAGE_KEY);
+      return;
+    }
+    sessionStorage.setItem(DRAFT_STORAGE_KEY, JSON.stringify({ savedAt: Date.now(), state }));
+  }, [state]);
 
   const startBooking = useCallback((merchant: Merchant, pkg: ServicePackage) => {
     setState((prev) => ({ ...prev, merchant, pkg, schedule: null, customer: null, couponCode: null, quote: null }));
@@ -64,11 +94,16 @@ export function BookingFlowProvider({ children }: { children: ReactNode }) {
     setState((prev) => ({ ...prev, couponCode, quote }));
   }, []);
 
-  const reset = useCallback(() => setState(initialState), []);
+  const clearSavedDraft = useCallback(() => sessionStorage.removeItem(DRAFT_STORAGE_KEY), []);
+
+  const reset = useCallback(() => {
+    sessionStorage.removeItem(DRAFT_STORAGE_KEY);
+    setState(initialState);
+  }, []);
 
   const value = useMemo(
-    () => ({ ...state, startBooking, setSchedule, setCustomer, setPaymentMethod, setCoupon, reset }),
-    [state, startBooking, setSchedule, setCustomer, setPaymentMethod, setCoupon, reset],
+    () => ({ ...state, startBooking, setSchedule, setCustomer, setPaymentMethod, setCoupon, clearSavedDraft, reset }),
+    [state, startBooking, setSchedule, setCustomer, setPaymentMethod, setCoupon, clearSavedDraft, reset],
   );
 
   return <BookingFlowContext.Provider value={value}>{children}</BookingFlowContext.Provider>;
