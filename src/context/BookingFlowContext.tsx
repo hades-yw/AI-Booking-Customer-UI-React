@@ -28,7 +28,7 @@ interface BookingFlowContextValue extends BookingFlowState {
   reset: () => void;
 }
 
-const DRAFT_STORAGE_KEY = "booklocal_booking_draft";
+const DRAFT_STORAGE_KEY = "rservo_booking_draft";
 const DRAFT_TTL_MS = 30 * 60 * 1000;
 
 const initialState: BookingFlowState = {

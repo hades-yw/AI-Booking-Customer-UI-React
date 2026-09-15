@@ -47,12 +47,12 @@ describe("Keycloak browser integration", () => {
 
   it("initializes the adapter once and removes the legacy persisted token", async () => {
     const { initializeAuth } = await import("./keycloak");
-    localStorage.setItem("booklocal_token", "legacy-token");
+    localStorage.setItem("rservo_token", "legacy-token");
     const first = initializeAuth(vi.fn());
     const second = initializeAuth(vi.fn());
     await Promise.all([first, second]);
     expect(mocks.init).toHaveBeenCalledTimes(1);
-    expect(localStorage.getItem("booklocal_token")).toBeNull();
+    expect(localStorage.getItem("rservo_token")).toBeNull();
   });
 
   it("shares concurrent token refresh and returns the refreshed token", async () => {

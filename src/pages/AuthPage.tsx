@@ -46,7 +46,7 @@ export function AuthPage() {
     <PageContainer>
       <div className="flex w-full flex-1 items-center justify-center px-4 py-10">
         <div className="w-full max-w-md rounded-2xl border border-ink-100 bg-white p-6 shadow-[0_2px_8px_rgba(0,0,0,0.05)] md:p-8 md:shadow-[0_8px_30px_rgba(0,0,0,0.06)]">
-          <p className="mb-1 text-xl font-black text-ink-900">Welcome to BookLocal</p>
+          <p className="mb-1 text-xl font-black text-ink-900">Welcome to Rservo</p>
           <p className="mb-6 text-[13px] text-ink-500">Sign in to save favourites and manage your bookings.</p>
 
           <div className="flex flex-col gap-3">

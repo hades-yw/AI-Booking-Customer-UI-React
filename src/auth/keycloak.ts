@@ -1,6 +1,6 @@
 import Keycloak, { type KeycloakLoginOptions } from "keycloak-js";
 
-const RETURN_PATH_KEY = "booklocal_auth_return_path";
+const RETURN_PATH_KEY = "rservo_auth_return_path";
 const CALLBACK_PATH = "/auth/callback";
 
 let instance: Keycloak | undefined;
@@ -43,7 +43,7 @@ export function consumeReturnPath(): string {
 }
 
 export function initializeAuth(onSessionLost: () => void): Promise<boolean> {
-  localStorage.removeItem("booklocal_token");
+  localStorage.removeItem("rservo_token");
   sessionLostHandler = onSessionLost;
   const kc = keycloak();
   kc.onAuthLogout = () => sessionLostHandler?.();
@@ -87,12 +87,21 @@ async function redirectToLogin(options: KeycloakLoginOptions, returnTo?: string)
   });
 }
 
+// Requests Keycloak's step-up OTP flow (realm's `conditional-level-of-authentication`,
+// see AI-Booking-System's CLAUDE.md MFA section) so a privileged user's issued access
+// token carries `acr: "2"` once OTP is completed. Customer-only logins on this client
+// don't need MFA, but requesting acr_values=2 unconditionally is harmless: Keycloak's
+// step-up flow only prompts for OTP if the user actually has an OTP credential
+// registered (see the realm's "Condition - credential" check) — a plain customer with
+// no OTP configured logs in exactly as before, just with a lower `acr` in the token.
+const STEP_UP_ACR_VALUES = "2";
+
 export function login(returnTo?: string): Promise<void> {
-  return redirectToLogin({ prompt: "login" }, returnTo);
+  return redirectToLogin({ prompt: "login", acrValues: STEP_UP_ACR_VALUES }, returnTo);
 }
 
 export function loginWithProvider(provider: "google" | "facebook", returnTo?: string): Promise<void> {
-  return redirectToLogin({ prompt: "login", idpHint: provider }, returnTo);
+  return redirectToLogin({ prompt: "login", idpHint: provider, acrValues: STEP_UP_ACR_VALUES }, returnTo);
 }
 
 export async function register(returnTo?: string): Promise<void> {

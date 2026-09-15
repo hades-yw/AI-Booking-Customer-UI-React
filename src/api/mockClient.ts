@@ -99,7 +99,7 @@ function slotsForStaffDate(staffId: string, iso: string): TimeSlot[] {
 // Keyed by mock user id, persisted alongside the mock users so favorites
 // survive a page reload within the same mock session.
 
-const FAVORITES_STORAGE_KEY = "booklocal_mock_favorites";
+const FAVORITES_STORAGE_KEY = "rservo_mock_favorites";
 
 function loadMockFavorites(): Record<number, FavoriteMerchant[]> {
   try {

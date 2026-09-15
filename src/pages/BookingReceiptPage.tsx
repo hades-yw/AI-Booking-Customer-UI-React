@@ -182,7 +182,7 @@ export function BookingReceiptPage() {
 
             <div className="mb-5 mt-5 flex items-center gap-1.5 text-ink-400">
               <Shield size={12} />
-              <span className="text-[11px]">Protected by BookLocal guarantee</span>
+              <span className="text-[11px]">Protected by Rservo guarantee</span>
             </div>
             <Link
               to="/profile?tab=bookings"

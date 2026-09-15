@@ -1,4 +1,4 @@
-# BookLocal — Customer Booking App
+# Rservo — Customer Booking App
 
 React and TypeScript customer application for browsing merchants and making guest or account-linked bookings. Customer authentication is provided by the existing Keycloak `booking` realm and its `booking-web` public client. Google, Facebook, email registration, email verification, password recovery, and passwords are handled by Keycloak.
 

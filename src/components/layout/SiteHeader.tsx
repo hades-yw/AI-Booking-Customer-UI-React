@@ -14,9 +14,9 @@ export function SiteHeader() {
       <div className="mx-auto flex w-full max-w-[1600px] items-center gap-4 px-4 py-3 md:px-8 lg:px-12">
         <Link to="/" className="flex shrink-0 items-center gap-2">
           <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-linear-to-br from-brand-600 to-brand-500 text-sm font-black text-white">
-            B
+            R
           </span>
-          <span className="text-[15px] font-extrabold text-ink-900">BookLocal</span>
+          <span className="text-[15px] font-extrabold text-ink-900">Rservo</span>
         </Link>
 
         <nav className="hidden items-center gap-1 md:flex">

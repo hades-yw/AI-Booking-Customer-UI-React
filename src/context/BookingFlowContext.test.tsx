@@ -32,13 +32,13 @@ describe("booking redirect draft", () => {
   });
 
   it("drops drafts older than thirty minutes", () => {
-    sessionStorage.setItem("booklocal_booking_draft", JSON.stringify({
+    sessionStorage.setItem("rservo_booking_draft", JSON.stringify({
       savedAt: Date.now() - 31 * 60 * 1000,
       state: { merchant, pkg },
     }));
     let flow: ReturnType<typeof useBookingFlow> | undefined;
     render(<BookingFlowProvider><Probe capture={(value) => { flow = value; }} /></BookingFlowProvider>);
     expect(flow?.merchant).toBeNull();
-    expect(sessionStorage.getItem("booklocal_booking_draft")).toBeNull();
+    expect(sessionStorage.getItem("rservo_booking_draft")).toBeNull();
   });
 });
