@@ -1,0 +1,7 @@
+.git
+node_modules
+dist
+_mockup_backup
+.env
+.env.*
+npm-debug.log*
