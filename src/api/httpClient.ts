@@ -45,12 +45,12 @@ async function tokenFor(mode: AuthMode): Promise<string | undefined> {
 async function request<T>(path: string, init?: RequestInit, auth: AuthMode = "none"): Promise<T> {
   const token = await tokenFor(auth);
   const res = await fetch(`${BASE_URL}${path}`, {
+    ...init,
     headers: {
       "Content-Type": "application/json",
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
       ...init?.headers,
     },
-    ...init,
   });
   if (!res.ok) {
     let message = `Request failed: ${res.status} ${res.statusText}`;
@@ -450,6 +450,8 @@ function toQuote(res: BackendQuoteResponse): Quote {
 }
 
 interface BackendBookingResponse {
+  booking_access_token?: string;
+  payment_summary?: BookingConfirmation["paymentSummary"];
   id: number;
   booking_number: string;
   status: string;
@@ -680,9 +682,12 @@ export const httpApiClient: ApiClient = {
       `/public/bookings/${payload.tenantSlug}`,
       {
         method: "POST",
+        headers: {"Idempotency-Key": payload.requestKey || crypto.randomUUID()},
         body: JSON.stringify({
           guest_name: payload.customer.name,
           guest_phone: payload.customer.phone,
+          guest_email: payload.customer.email || undefined,
+          payment_option: payload.paymentOption || "venue",
           tenant_id: 0, // overwritten server-side from the tenant_slug path param
           pax: 1,
           coupon_code: payload.couponCode || undefined,
@@ -704,6 +709,8 @@ export const httpApiClient: ApiClient = {
     return {
       id: res.id,
       bookingRef: res.booking_number,
+      bookingAccessToken: res.booking_access_token,
+      paymentSummary: res.payment_summary,
       status: res.status,
       merchant: payload.merchant,
       pkg: payload.pkg,
@@ -771,4 +778,14 @@ export const httpApiClient: ApiClient = {
   async removeFavorite(tenantSlug: string) {
     await request<{ message: string }>(`/customers/me/favorites/${tenantSlug}`, { method: "DELETE" }, "required");
   },
+};
+
+export type CheckoutOptions = { booking_available?: boolean; booking_message?: string | null; options: ("venue" | "full" | "deposit")[]; deposit_sen: number; gateway: string | null };
+export type PaymentAttempt = { id: string; status: string; payment_url?: string; amount_sen: number; booking_id?: number; error_category?: string };
+export type PaymentSummary = NonNullable<BookingConfirmation["paymentSummary"]>;
+export const paymentApi = {
+  options: (slug:string) => request<CheckoutOptions>(`/billing/public/${encodeURIComponent(slug)}/options`),
+  checkout: (bookingId:number, token:string, returnUrl:string) => request<PaymentAttempt>(`/billing/bookings/${bookingId}/checkout`, {method:"POST",headers:{"X-Booking-Access":token},body:JSON.stringify({return_url:returnUrl})}, "optional"),
+  attempt: (id:string, token:string) => request<PaymentAttempt>(`/billing/attempts/${encodeURIComponent(id)}`,{headers:{"X-Booking-Access":token}},"optional"),
+  status: (bookingId:number, token:string) => request<PaymentSummary>(`/billing/bookings/${bookingId}/status`,{headers:{"X-Booking-Access":token}},"optional"),
 };

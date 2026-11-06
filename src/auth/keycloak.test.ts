@@ -37,6 +37,14 @@ describe("Keycloak browser integration", () => {
     window.history.replaceState({}, "", "/");
   });
 
+  it("does not force tenant OTP during password or social customer-app sign-in", async () => {
+    const { login, loginWithProvider } = await import("./keycloak");
+    await login('/profile');
+    expect(mocks.login).toHaveBeenLastCalledWith(expect.objectContaining({acrValues:'1'}));
+    await loginWithProvider('google','/profile');
+    expect(mocks.login).toHaveBeenLastCalledWith(expect.objectContaining({acrValues:'1',idpHint:'google'}));
+  });
+
   it("accepts same-origin return paths and rejects external or auth-loop paths", async () => {
     const { safeReturnPath } = await import("./keycloak");
     expect(safeReturnPath("/merchants/salon/book?step=2")).toBe("/merchants/salon/book?step=2");

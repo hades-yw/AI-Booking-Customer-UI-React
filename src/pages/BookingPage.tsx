@@ -2,6 +2,8 @@ import { ArrowRight, Calendar, ChevronDown, ChevronUp, Clock, Pencil } from "luc
 import { useMemo, useState } from "react";
 import { Navigate, useNavigate } from "react-router-dom";
 import { api } from "../api";
+import { useBookingAvailability } from "../lib/useBookingAvailability";
+import { BookingAvailabilityNotice } from "../components/ui/BookingAvailabilityNotice";
 import { BottomActionBar } from "../components/layout/BottomActionBar";
 import { Footer } from "../components/layout/Footer";
 import { PageContainer } from "../components/layout/PageContainer";
@@ -164,6 +166,7 @@ function nextDates(count: number): string[] {
 export function BookingPage() {
   const navigate = useNavigate();
   const { merchant, pkg, setSchedule } = useBookingFlow();
+  const bookingAvailability = useBookingAvailability(merchant?.id);
 
   // "By Date" mode state (existing flow, unchanged)
   const [selectedDay, setSelectedDay] = useState(0);
@@ -327,6 +330,7 @@ export function BookingPage() {
         : null;
 
   const handleProceed = () => {
+    if (!bookingAvailability.available) return;
     if (mode === "date") {
       if (!day || !selectedSlot) return;
       setSchedule({
@@ -472,7 +476,8 @@ export function BookingPage() {
             ) : (
               <p className="m-0 mb-4 text-xs text-ink-400">Pick a date and time to continue.</p>
             )}
-            <PrimaryButton fullWidth disabled={!currentSelection} onClick={handleProceed}>
+            <BookingAvailabilityNotice availability={bookingAvailability}/>
+            <PrimaryButton fullWidth disabled={!bookingAvailability.available || !currentSelection} onClick={handleProceed}>
               Proceed to Confirmation <ArrowRight size={16} />
             </PrimaryButton>
           </div>
@@ -489,7 +494,8 @@ export function BookingPage() {
             </span>
           </div>
         )}
-        <PrimaryButton fullWidth disabled={!currentSelection} onClick={handleProceed}>
+        <BookingAvailabilityNotice availability={bookingAvailability}/>
+        <PrimaryButton fullWidth disabled={!bookingAvailability.available || !currentSelection} onClick={handleProceed}>
           Proceed to Confirmation <ArrowRight size={16} />
         </PrimaryButton>
       </BottomActionBar>

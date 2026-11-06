@@ -57,7 +57,7 @@ These settings change the active Keycloak service and are not stored by this rep
 
 Identity provider credentials belong only in Keycloak. Under **Identity Providers**, configure provider aliases `google` and `facebook`, copy the broker callback shown by Keycloak into each provider console, request identity/profile/email, disable provider-token storage, and retain the existing first-broker-login and post-login flows.
 
-An unverified or missing social-provider email must be verified in Keycloak before account features can be used. Regular customer accounts are not required to enrol MFA. Accounts that also hold management membership remain subject to the backend's signed `amr: ["otp"]` requirement.
+An unverified or missing social-provider email must be verified in Keycloak before account features can be used. Regular customer accounts are not required to enrol MFA. Tenant owners, managers and staff also sign in without mandatory OTP. Platform administrator accounts still require `acr >= 2`, completed through the administration console.
 
 ## Run the React application
 
@@ -109,7 +109,7 @@ For local integration testing, verify:
 5. Complete a signed-in booking and confirm it appears in booking history.
 6. Save and remove a favourite, edit the profile, open Keycloak account management, and log out.
 7. Let a token expire and confirm the next protected request refreshes it or clears the session cleanly.
-8. Confirm a normal customer is not asked for OTP. Confirm a management account without `amr: otp` receives the backend MFA rejection.
+8. Confirm a normal customer is not asked for OTP. Confirm tenant memberships work without OTP and platform administrators without `acr >= 2` remain rejected.
 9. Stop Keycloak and confirm public browsing and guest booking remain available.
 
 ## Troubleshooting
@@ -120,7 +120,7 @@ For local integration testing, verify:
 - **401 invalid audience/client:** retain the `booking-api` audience mapper and ensure the backend accepts `booking-web`.
 - **Verify your email:** finish the Keycloak email action; account provisioning requires a verified email.
 - **Social login has no email:** configure the provider to supply email or complete Keycloak's email verification step.
-- **403 requiring two-factor authentication:** the identity has management access. Complete OTP enrolment and sign in again so the token contains `amr: ["otp"]`.
+- **403 requiring two-factor authentication:** the identity is a platform administrator. Complete OTP step-up through the administration console so the token contains `acr >= 2`.
 - **Keycloak unavailable:** confirm the Compose service is healthy at `http://localhost:8180`; guest use should still work.
 
 ## Project structure
@@ -128,3 +128,35 @@ For local integration testing, verify:
 Application data access is defined by `src/api/client.ts` and implemented by `src/api/httpClient.ts`. Keycloak lifecycle code lives in `src/auth`, React authentication state in `src/context/AuthContext.tsx`, and the booking draft in `src/context/BookingFlowContext.tsx`. The real backend client is selected in `src/api/index.ts`.
 
 Production deployments must add their exact HTTPS React callback, silent SSO, logout, and origin URLs to the active `booking-web` client. Do not use wildcard production origins and do not place identity-provider credentials in Vite environment variables.
+
+## Billplz payments and credits
+
+For persisted demo bookings and credit deductions, use the [isolated billing demo](../AI-Booking-System/LOCAL_BILLING_DEMO.md). This connects to a separate seeded backend rather than the old mock client.
+
+See the [payment setup and review guide](../AI-Booking-System/BILLPLZ_SETUP.md) for sandbox/Vault setup, tenant onboarding, payment policies, configurable credits, promotions, invoices and sales reports. Live payments remain disabled until explicitly configured. WhatsApp and calendar sync are reserved for a later phase.
+
+
+### Public booking availability
+
+Paused branches show a neutral availability message and disabled booking buttons
+on package selection, scheduling and checkout. Private tenant credit/billing
+information is never needed by the customer UI. The existing payment-options
+endpoint supplies a read-only `booking_available` hint; the backend still checks
+eligibility when creating a booking. Existing payments are unaffected.
+Availability refreshes on focus and **Check again**; failed checks disable new
+booking actions with a retry. Run `node test/booking-availability.browser.mjs`
+against the local billing demo to verify desktop/mobile behaviour without saving
+bookings or payments. See the backend `LOCAL_BILLING_DEMO.md` for setup.
+
+
+### Isolated billing demo customer app
+
+With the backend billing demo running, use `npm run dev:billing` and open
+`http://localhost:5174`. This points to API 8001 and Keycloak 8181 and shows the
+same Demo businesses as the tenant console on port 2123. For the paused booking
+example open `http://localhost:5174/merchants/demo-frozen?tab=packages`.
+
+The ordinary `npm run dev` uses your existing `.env` settings (currently API 8000
+and Keycloak 8180) and normally runs on port 5173. That is a separate dataset with
+businesses such as Luna Hair Studio; changes made in one backend do not appear in
+the other. The demo command does not change `.env` or merge/reset any databases.

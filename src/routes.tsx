@@ -1,3 +1,4 @@
+import { PaymentReturnPage } from "./pages/PaymentReturnPage";
 import type { RouteObject } from "react-router-dom";
 import { AuthPage } from "./pages/AuthPage";
 import { AuthCallbackPage } from "./pages/AuthCallbackPage";
@@ -11,6 +12,7 @@ import { NotFoundPage } from "./pages/NotFoundPage";
 import { ProfilePage } from "./pages/ProfilePage";
 
 export const routes: RouteObject[] = [
+  { path: "/payments/return", element: <PaymentReturnPage /> },
   { path: "/", element: <LandingPage /> },
   { path: "/merchants/:merchantId", element: <MerchantDetailPage /> },
   { path: "/merchants/:merchantId/book", element: <BookingPage /> },

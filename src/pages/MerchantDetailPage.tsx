@@ -2,6 +2,8 @@ import { ArrowRight, Check, ChevronLeft, Clock, Mail, MapPin, Phone, Share2, Sta
 import { useMemo } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { api } from "../api";
+import { useBookingAvailability } from "../lib/useBookingAvailability";
+import { BookingAvailabilityNotice } from "../components/ui/BookingAvailabilityNotice";
 import { BottomActionBar } from "../components/layout/BottomActionBar";
 import { Footer } from "../components/layout/Footer";
 import { PageContainer } from "../components/layout/PageContainer";
@@ -77,6 +79,7 @@ function BusinessHoursList({ hours, timezone }: { hours: BusinessHours; timezone
 export function MerchantDetailPage() {
   const { merchantId } = useParams<{ merchantId: string }>();
   const navigate = useNavigate();
+  const bookingAvailability = useBookingAvailability(merchantId);
   const { merchant: bookingMerchant, pkg, startBooking } = useBookingFlow();
   const [searchParams, setSearchParams] = useSearchParams();
   const tab = useMemo(() => paramToTab(searchParams.get("tab")), [searchParams]);
@@ -98,7 +101,7 @@ export function MerchantDetailPage() {
   );
 
   const handleBook = (pkg: ServicePackage) => {
-    if (!merchant) return;
+    if (!merchant || !bookingAvailability.available) return;
     startBooking(merchant, pkg);
     navigate(`/merchants/${merchant.id}/book`);
   };
@@ -269,10 +272,12 @@ export function MerchantDetailPage() {
                 </div>
               )}
 
+              <BookingAvailabilityNotice availability={bookingAvailability}/>
               {tab === "Packages" && (
                 <ServiceAccordion
                   services={merchant.services}
                   onBook={handleBook}
+                  bookingDisabled={!bookingAvailability.available}
                   initialPackage={bookingMerchant?.id === merchant.id ? pkg : null}
                 />
               )}

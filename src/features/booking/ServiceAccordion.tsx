@@ -6,13 +6,14 @@ import type { Service, ServiceOption, ServicePackage, ServicePackageTier } from 
 
 interface ServiceAccordionProps {
   services: Service[];
+  bookingDisabled?: boolean;
   onBook: (pkg: ServicePackage) => void;
   /** A previously-booked package to restore selections for and auto-expand, e.g. when the
    * customer navigates back here from the booking flow to change their package. */
   initialPackage?: ServicePackage | null;
 }
 
-export function ServiceAccordion({ services, onBook, initialPackage }: ServiceAccordionProps) {
+export function ServiceAccordion({ services, onBook, initialPackage, bookingDisabled = false }: ServiceAccordionProps) {
   const [expandedId, setExpandedId] = useState<string | null>(
     initialPackage?.id ?? services[0]?.id ?? null,
   );
@@ -26,6 +27,7 @@ export function ServiceAccordion({ services, onBook, initialPackage }: ServiceAc
           expanded={expandedId === service.id}
           onToggle={() => setExpandedId((prev) => (prev === service.id ? null : service.id))}
           onBook={onBook}
+          bookingDisabled={bookingDisabled}
           initialPackage={initialPackage && initialPackage.id === service.id ? initialPackage : null}
         />
       ))}
@@ -39,8 +41,10 @@ function ServiceCard({
   onToggle,
   onBook,
   initialPackage,
+  bookingDisabled,
 }: {
   service: Service;
+  bookingDisabled: boolean;
   expanded: boolean;
   onToggle: () => void;
   onBook: (pkg: ServicePackage) => void;
@@ -86,6 +90,7 @@ function ServiceCard({
     : service.duration;
 
   const handleBook = () => {
+    if (bookingDisabled) return;
     onBook({
       id: service.id,
       name: service.name,
@@ -139,9 +144,10 @@ function ServiceCard({
           <button
             type="button"
             onClick={handleBook}
-            className="cursor-pointer rounded-full border-0 bg-brand-600 px-[18px] py-2 text-xs font-bold text-white hover:bg-brand-700"
+            disabled={bookingDisabled}
+            className="disabled:cursor-not-allowed disabled:bg-ink-200 disabled:text-ink-400 cursor-pointer rounded-full border-0 bg-brand-600 px-[18px] py-2 text-xs font-bold text-white hover:bg-brand-700"
           >
-            Book Now
+            {bookingDisabled ? 'Booking unavailable' : 'Book Now'}
           </button>
         </div>
       )}
@@ -227,9 +233,10 @@ function ServiceCard({
             <button
               type="button"
               onClick={handleBook}
-              className="cursor-pointer rounded-full border-0 bg-brand-600 px-[18px] py-2 text-xs font-bold text-white hover:bg-brand-700"
+              disabled={bookingDisabled}
+              className="disabled:cursor-not-allowed disabled:bg-ink-200 disabled:text-ink-400 cursor-pointer rounded-full border-0 bg-brand-600 px-[18px] py-2 text-xs font-bold text-white hover:bg-brand-700"
             >
-              Book Now
+              {bookingDisabled ? 'Booking unavailable' : 'Book Now'}
             </button>
           </div>
         </div>

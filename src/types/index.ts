@@ -144,6 +144,7 @@ export interface SelectedSchedule {
 }
 
 export interface CustomerDetails {
+  email?: string;
   name: string;
   phone: string;
   notes: string;
@@ -185,6 +186,8 @@ export interface Quote {
 }
 
 export interface BookingConfirmation {
+  bookingAccessToken?: string;
+  paymentSummary?: { total_sen: number; paid_sen: number; outstanding_sen: number; online_due_sen: number; financial_status: string; payment_policy: string; booking_status: string };
   id: number;
   bookingRef: string;
   status: string;
@@ -199,6 +202,8 @@ export interface BookingConfirmation {
 }
 
 export interface CreateBookingPayload {
+  paymentOption?: "venue" | "full" | "deposit";
+  requestKey?: string;
   tenantSlug: string;
   tenantTimezone: string;
   merchant: Merchant;

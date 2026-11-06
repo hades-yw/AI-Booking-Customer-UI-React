@@ -87,21 +87,15 @@ async function redirectToLogin(options: KeycloakLoginOptions, returnTo?: string)
   });
 }
 
-// Requests Keycloak's step-up OTP flow (realm's `conditional-level-of-authentication`,
-// see AI-Booking-System's CLAUDE.md MFA section) so a privileged user's issued access
-// token carries `acr: "2"` once OTP is completed. Customer-only logins on this client
-// don't need MFA, but requesting acr_values=2 unconditionally is harmless: Keycloak's
-// step-up flow only prompts for OTP if the user actually has an OTP credential
-// registered (see the realm's "Condition - credential" check) — a plain customer with
-// no OTP configured logs in exactly as before, just with a lower `acr` in the token.
-const STEP_UP_ACR_VALUES = "2";
+// Customer and tenant accounts do not require OTP. Platform administrators
+// complete their required step-up through the administration console.
 
 export function login(returnTo?: string): Promise<void> {
-  return redirectToLogin({ prompt: "login", acrValues: STEP_UP_ACR_VALUES }, returnTo);
+  return redirectToLogin({ prompt: "login", acrValues: "1" }, returnTo);
 }
 
 export function loginWithProvider(provider: "google" | "facebook", returnTo?: string): Promise<void> {
-  return redirectToLogin({ prompt: "login", idpHint: provider, acrValues: STEP_UP_ACR_VALUES }, returnTo);
+  return redirectToLogin({ prompt: "login", idpHint: provider, acrValues: "1" }, returnTo);
 }
 
 export async function register(returnTo?: string): Promise<void> {
