@@ -221,6 +221,7 @@ export interface AuthUser {
   id: number;
   name: string;
   email: string;
+  emailVerified: boolean;
 }
 
 export interface ProfileUpdate {

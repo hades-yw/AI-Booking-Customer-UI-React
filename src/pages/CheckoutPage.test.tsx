@@ -62,3 +62,14 @@ test('a server rejection after the availability check refreshes the button witho
   expect(mocks.create).toHaveBeenCalledOnce(); expect(mocks.checkout).not.toHaveBeenCalled();
   expect(document.body.textContent).not.toMatch(/credit|reload|billing review|debt/i);
 });
+
+test('a completed booking clears its retry key so the same slot can be booked again', async () => {
+  mocks.create.mockResolvedValueOnce({
+    id: 42, bookingRef: 'BOOK-42', status: 'approved', total: 100,
+    paymentSummary: { paid_sen: 0, outstanding_sen: 10000, online_due_sen: 0 },
+  });
+  show();
+  fireEvent.click(await screen.findByRole('button', { name: 'Confirm · pay at venue' }));
+  await screen.findByText('BOOK-42');
+  expect(Object.keys(sessionStorage).some(key => key.startsWith('booking-request:'))).toBe(false);
+});

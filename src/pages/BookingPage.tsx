@@ -226,7 +226,8 @@ export function BookingPage() {
       : staffAvailability;
     for (const day of relevant) {
       for (const slot of day.slots) {
-        if (!staffModeSlotsByLabel.has(slot.label)) staffModeSlotsByLabel.set(slot.label, slot);
+        const existing = staffModeSlotsByLabel.get(slot.label);
+        if (!existing || (!existing.available && slot.available)) staffModeSlotsByLabel.set(slot.label, slot);
       }
     }
   }
@@ -239,7 +240,8 @@ export function BookingPage() {
     const slotsByLabel = new Map<string, TimeSlot>();
     for (const day of relevant ?? []) {
       for (const slot of day.slots) {
-        if (!slotsByLabel.has(slot.label)) slotsByLabel.set(slot.label, slot);
+        const existing = slotsByLabel.get(slot.label);
+        if (!existing || (!existing.available && slot.available)) slotsByLabel.set(slot.label, slot);
       }
     }
     return { date, slots: Array.from(slotsByLabel.values()) };

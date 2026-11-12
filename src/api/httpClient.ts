@@ -119,6 +119,7 @@ interface BackendUser {
   id: number;
   name: string | null;
   email: string;
+  email_verified?: boolean;
 }
 
 // ─── AVAILABILITY ────────────────────────────────────────────────────────────
@@ -180,7 +181,7 @@ function toStaff(s: BackendStaff): Staff {
 }
 
 function toAuthUser(user: BackendUser): AuthUser {
-  return { id: user.id, name: user.name ?? "", email: user.email };
+  return { id: user.id, name: user.name ?? "", email: user.email, emailVerified: user.email_verified ?? true };
 }
 
 // ─── TENANT → MERCHANT MAPPING ──────────────────────────────────────────────
@@ -572,7 +573,7 @@ export const httpApiClient: ApiClient = {
     }
   },
 
-  async getAvailability(merchantId, _packageId) {
+  async getAvailability(merchantId, packageId) {
     const today = new Date();
     const dates = Array.from({ length: 7 }, (_, i) => {
       const d = new Date(today);
@@ -582,7 +583,7 @@ export const httpApiClient: ApiClient = {
     const days = await Promise.all(
       dates.map(async (date) => {
         const res = await request<BackendAvailableSlots>(
-          `/public/bookings/${merchantId}/available-slots?date=${date}`,
+          `/public/bookings/${merchantId}/available-slots?date=${date}&service_id=${encodeURIComponent(packageId)}`,
         );
         return {
           date,
@@ -600,9 +601,9 @@ export const httpApiClient: ApiClient = {
     return days;
   },
 
-  async getAvailabilityForDate(merchantId, _packageId, date) {
+  async getAvailabilityForDate(merchantId, packageId, date) {
     const res = await request<BackendAvailableSlots>(
-      `/public/bookings/${merchantId}/available-slots?date=${date}`,
+      `/public/bookings/${merchantId}/available-slots?date=${date}&service_id=${encodeURIComponent(packageId)}`,
     );
     return {
       date,
@@ -622,9 +623,9 @@ export const httpApiClient: ApiClient = {
     return staff.filter((s) => s.is_active).map(toStaff);
   },
 
-  async getAvailabilityByStaff(merchantId, _packageId, date) {
+  async getAvailabilityByStaff(merchantId, packageId, date) {
     const res = await request<BackendAvailableSlotsByStaff>(
-      `/public/bookings/${merchantId}/available-slots-by-staff?date=${date}`,
+      `/public/bookings/${merchantId}/available-slots-by-staff?date=${date}&service_id=${encodeURIComponent(packageId)}`,
     );
     return res.staff.map(
       (s): StaffDayAvailability => ({

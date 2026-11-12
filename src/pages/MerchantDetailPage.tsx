@@ -12,6 +12,7 @@ import { IconButton } from "../components/ui/IconButton";
 import { ErrorState, LoadingState } from "../components/ui/AsyncState";
 import { PrimaryButton } from "../components/ui/PrimaryButton";
 import { useBookingFlow } from "../context/BookingFlowContext";
+import { useAuth } from "../context/AuthContext";
 import { ServiceAccordion } from "../features/booking/ServiceAccordion";
 import { gradientStyle } from "../lib/style";
 import { useAsync } from "../lib/useAsync";
@@ -80,6 +81,7 @@ export function MerchantDetailPage() {
   const { merchantId } = useParams<{ merchantId: string }>();
   const navigate = useNavigate();
   const bookingAvailability = useBookingAvailability(merchantId);
+  const { authenticated } = useAuth();
   const { merchant: bookingMerchant, pkg, startBooking } = useBookingFlow();
   const [searchParams, setSearchParams] = useSearchParams();
   const tab = useMemo(() => paramToTab(searchParams.get("tab")), [searchParams]);
@@ -103,7 +105,8 @@ export function MerchantDetailPage() {
   const handleBook = (pkg: ServicePackage) => {
     if (!merchant || !bookingAvailability.available) return;
     startBooking(merchant, pkg);
-    navigate(`/merchants/${merchant.id}/book`);
+    const returnTo = `/merchants/${merchant.id}/book`;
+    navigate(authenticated ? returnTo : "/login", authenticated ? undefined : { state: { returnTo } });
   };
 
   if (loading) return <PageContainer><LoadingState label="Loading merchant…" /></PageContainer>;

@@ -67,7 +67,7 @@ export function AuthPage() {
             </button>
           </div>
 
-          {(error || authError || callbackError) && <p className="mt-4 text-sm font-semibold text-red-500">{error || callbackError || authError}</p>}
+          {(error || authError || callbackError) && <p className="mt-4 text-sm font-semibold text-red-500">{error || authError || callbackError}</p>}
 
           <div className="my-5 flex items-center gap-3 text-xs text-ink-400"><span className="h-px flex-1 bg-ink-100" />or<span className="h-px flex-1 bg-ink-100" /></div>
           <button type="button" onClick={continueAsGuest} className="w-full cursor-pointer border-0 bg-transparent py-2 text-sm font-bold text-ink-600 hover:text-ink-900">Continue as guest</button>

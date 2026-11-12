@@ -1,4 +1,4 @@
-import { ArrowRight, FileText, Phone, User } from "lucide-react";
+import { ArrowRight, FileText, Mail, Phone, User } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Navigate, useNavigate } from "react-router-dom";
 import { api } from "../api";
@@ -13,6 +13,7 @@ import { StepProgress } from "../components/ui/StepProgress";
 import { TextAreaField } from "../components/ui/TextAreaField";
 import { TextField } from "../components/ui/TextField";
 import { useBookingFlow } from "../context/BookingFlowContext";
+import { useAuth } from "../context/AuthContext";
 import { CouponInput } from "../features/booking/CouponInput";
 import { formatDate } from "../lib/date";
 import { formatCurrency } from "../lib/style";
@@ -73,9 +74,11 @@ function QuoteLineItems({ pkg, quote }: { pkg: NonNullable<ReturnType<typeof use
 
 export function ConfirmationPage() {
   const navigate = useNavigate();
+  const { authenticated, user } = useAuth();
   const { merchant, pkg, schedule, setCustomer, couponCode, quote, setCoupon } = useBookingFlow();
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
+  const [email, setEmail] = useState("");
   const [notes, setNotes] = useState("");
   const [quoteLoading, setQuoteLoading] = useState(false);
   const [quoteError, setQuoteError] = useState<string | null>(null);
@@ -84,6 +87,12 @@ export function ConfirmationPage() {
   // BookingPage.tsx's handleProceed) — this is just a defensive guard in
   // case a schedule was somehow set without one.
   const supportsQuote = Boolean(schedule?.startTime);
+
+  useEffect(() => {
+    if (!user) return;
+    setName((current) => current || user.name);
+    setEmail(user.email);
+  }, [user]);
 
   // service.price/package.price/option.price can be "per_hour" on the
   // backend (app/utils/pricing.py::price_for_basis scales by
@@ -124,11 +133,13 @@ export function ConfirmationPage() {
 
   if (!merchant || !pkg || !schedule) return <Navigate to="/" replace />;
 
-  const canProceed = name.trim().length > 0 && phone.trim().length > 0;
+  const emailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
+  const accountVerified = !authenticated || Boolean(user?.emailVerified);
+  const canProceed = name.trim().length > 0 && phone.trim().length > 0 && emailValid && accountVerified;
 
   const handleCheckout = () => {
     if (!canProceed) return;
-    setCustomer({ name, phone, notes });
+    setCustomer({ name, phone, email: user?.email ?? email.trim(), notes });
     navigate(`/merchants/${merchant.id}/checkout`);
   };
 
@@ -205,6 +216,19 @@ export function ConfirmationPage() {
               </div>
               <div className="mb-2.5">
                 <TextField
+                  icon={<Mail size={14} />}
+                  value={user?.email ?? email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="Email address"
+                  type="email"
+                  autoComplete="email"
+                  required
+                  readOnly={Boolean(user)}
+                  className={user ? "cursor-not-allowed bg-ink-100" : ""}
+                />
+              </div>
+              <div className="mb-2.5">
+                <TextField
                   icon={<Phone size={14} />}
                   value={phone}
                   onChange={(e) => setPhone(e.target.value)}
@@ -219,6 +243,7 @@ export function ConfirmationPage() {
                 placeholder="Special requests (optional)"
                 rows={2}
               />
+              {!accountVerified && <p className="mt-2 text-xs font-semibold text-red-500">Verify your account email before booking.</p>}
             </div>
           </div>
 
